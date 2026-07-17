@@ -1,0 +1,8 @@
+[console_scripts]
+adaptive-vr-calibration = adaptive_vr.calibration_control:main
+adaptive-vr-demo = adaptive_vr.demo:main
+adaptive-vr-prepare-public = adaptive_vr.public_dataset:main
+adaptive-vr-receiver = adaptive_vr.receiver:main
+adaptive-vr-simulator = adaptive_vr.simulator:main
+adaptive-vr-speech = adaptive_vr.speech_live:main
+adaptive-vr-train-baseline = adaptive_vr.train_baseline:main

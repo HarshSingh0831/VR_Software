@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adaptive-vr"
+version = "0.1.0"
+description = "Host-side feature fusion foundation for an adaptive VR learning headset"
+requires-python = ">=3.11"
+dependencies = ["websockets>=12,<16"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+speech = ["vosk>=0.3.45,<0.4", "sounddevice>=0.5,<0.6"]
+dashboard = ["streamlit>=1.59,<2", "paramiko>=5,<6", "pillow>=12,<13", "pandas>=2.3,<3"]
+ml = ["scikit-learn>=1.7,<2", "joblib>=1.5,<2", "pillow>=12,<13", "numpy>=2,<3", "pyarrow>=20,<24"]
+cnn = ["torch>=2.7,<3", "scikit-learn>=1.7,<2", "pillow>=12,<13", "numpy>=2,<3"]
+
+[project.scripts]
+adaptive-vr-receiver = "adaptive_vr.receiver:main"
+adaptive-vr-simulator = "adaptive_vr.simulator:main"
+adaptive-vr-demo = "adaptive_vr.demo:main"
+adaptive-vr-speech = "adaptive_vr.speech_live:main"
+adaptive-vr-calibration = "adaptive_vr.calibration_control:main"
+adaptive-vr-prepare-public = "adaptive_vr.public_dataset:main"
+adaptive-vr-train-baseline = "adaptive_vr.train_baseline:main"
+adaptive-vr-evaluate-fusion = "adaptive_vr.evaluate_fusion:main"
+adaptive-vr-prepare-headset = "adaptive_vr.headset_dataset:main"
+adaptive-vr-cnn = "adaptive_vr.cnn:main"
+adaptive-vr-cnn-predict = "adaptive_vr.cnn_inference:main"
+
+[tool.setuptools]
+package-dir = {"" = "host"}
+
+[tool.setuptools.packages.find]
+where = ["host"]
+
+[tool.pytest.ini_options]
+pythonpath = ["host"]
+testpaths = ["tests"]

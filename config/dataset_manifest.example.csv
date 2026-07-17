@@ -1,0 +1,4 @@
+path,subject_id,label,region,session_id
+data/subject-001/upper/open-eyes-001.jpg,subject-001,focused,upper,calibration-001
+data/subject-001/lower/speaking-001.jpg,subject-001,answering,lower,calibration-001
+data/subject-002/upper/closed-eyes-001.jpg,subject-002,drowsy,upper,calibration-002

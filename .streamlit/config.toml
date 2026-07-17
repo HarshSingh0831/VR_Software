@@ -1,0 +1,14 @@
+[theme]
+base = "dark"
+primaryColor = "#22C55E"
+backgroundColor = "#090E17"
+secondaryBackgroundColor = "#121A27"
+textColor = "#F4F7FB"
+borderColor = "#273449"
+showWidgetBorder = true
+baseRadius = "0.75rem"
+
+[server]
+headless = true
+address = "127.0.0.1"
+port = 8501

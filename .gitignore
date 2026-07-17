@@ -1,0 +1,14 @@
+.venv/
+.arduino/
+.tools/
+.docx_review/
+.video_review/
+.downloads/
+.rpi-provisioning/
+__pycache__/
+*.py[cod]
+firmware/esp32_local_processor/secrets.h
+models/
+*.zip
+*.log
+.streamlit/secrets.toml

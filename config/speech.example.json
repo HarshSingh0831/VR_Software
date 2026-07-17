@@ -1,0 +1,7 @@
+{
+  "language": "auto",
+  "sample_rate": 16000,
+  "input_device": null,
+  "english_model": "models/vosk-model-small-en-us-0.15",
+  "hindi_model": "models/vosk-model-small-hi-0.22"
+}

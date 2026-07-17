@@ -1,0 +1,16 @@
+[Unit]
+Description=Adaptive VR lower-face camera node
+After=network-online.target adaptive-vr-receiver.service
+Wants=network-online.target adaptive-vr-receiver.service
+
+[Service]
+Type=simple
+User=vrpi
+WorkingDirectory=/opt/adaptive-vr
+ExecStart=/usr/bin/python3 /opt/adaptive-vr/lower_face_node.py --receiver ws://127.0.0.1:8765/
+Restart=always
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

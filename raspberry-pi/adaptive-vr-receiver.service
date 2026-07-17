@@ -1,0 +1,17 @@
+[Unit]
+Description=Adaptive VR central feature receiver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vrpi
+WorkingDirectory=/opt/adaptive-vr
+Environment=PYTHONPATH=/opt/adaptive-vr/host
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 -m adaptive_vr.receiver --host 0.0.0.0 --port 8765
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
