@@ -7,8 +7,13 @@ import pandas as pd
 import streamlit as st
 
 from adaptive_vr.dashboard_pi import PiConnectionError, PiGateway
-from adaptive_vr.cnn_inference import PartialFaceCnnPredictor
-from adaptive_vr.taxonomy import STATE_ENGAGEMENT, StudentState
+from adaptive_vr.dashboard_simulator import SimulatedPiGateway, simulated_predictions
+from adaptive_vr.cogniverse_client import (
+    CogniverseClient,
+    CogniverseConnectionError,
+    build_dashboard_packet,
+)
+from adaptive_vr.taxonomy import StudentState
 
 
 st.set_page_config(
@@ -28,6 +33,12 @@ st.session_state.setdefault("participant", "P001")
 st.session_state.setdefault("session_name", "")
 st.session_state.setdefault("start_label", "focused")
 st.session_state.setdefault("new_label", "focused")
+st.session_state.setdefault("simulation_mode", False)
+st.session_state.setdefault("simulation_scenario", "auto")
+st.session_state.setdefault("cogniverse_enabled", False)
+st.session_state.setdefault("cogniverse_url", "http://127.0.0.1:8000")
+st.session_state.setdefault("cogniverse_session_id", "")
+st.session_state.setdefault("cogniverse_last_status", "Not connected")
 
 
 @st.cache_resource(max_entries=4)
@@ -36,8 +47,16 @@ def gateway(host: str, username: str, password: str) -> PiGateway:
 
 
 @st.cache_resource
-def cnn_predictor() -> PartialFaceCnnPredictor:
+def cnn_predictor():
+    # Load torch and the model wrapper only when real hardware mode is used.
+    from adaptive_vr.cnn_inference import PartialFaceCnnPredictor
+
     return PartialFaceCnnPredictor("models/cnn", task="expression")
+
+
+@st.cache_resource
+def simulation_gateway() -> SimulatedPiGateway:
+    return SimulatedPiGateway()
 
 
 def validate_component(value: str, field: str, *, optional: bool = False) -> str:
@@ -50,14 +69,40 @@ def validate_component(value: str, field: str, *, optional: bool = False) -> str
 
 
 with st.sidebar:
-    st.subheader(":material/cable: Pi connection")
-    st.text_input("Pi address", key="pi_host")
-    st.text_input("Username", key="pi_user")
-    st.text_input("Pi password", type="password", key="pi_password")
-    st.caption("The password stays in this browser session and is not written to the project.")
-    if st.button(":material/refresh: Reconnect", width="stretch"):
-        gateway.clear()
-        st.rerun()
+    st.subheader(":material/tune: Run mode")
+    st.toggle("Simulation mode (no Pi required)", key="simulation_mode")
+    if st.session_state.simulation_mode:
+        st.caption("Hardware-free demo with simulated cameras, sessions, and student states.")
+        st.selectbox(
+            "Demo scenario",
+            ["auto", *LABELS],
+            format_func=lambda value: "Automatic state cycle"
+            if value == "auto"
+            else LABEL_NAMES[value],
+            key="simulation_scenario",
+        )
+        if st.button(":material/restart_alt: Reset simulation", width="stretch"):
+            simulation_gateway.clear()
+            st.rerun()
+    else:
+        st.subheader(":material/cable: Pi connection")
+        st.text_input("Pi address", key="pi_host")
+        st.text_input("Username", key="pi_user")
+        st.text_input("Pi password", type="password", key="pi_password")
+        st.caption("The password stays in this browser session and is not written to the project.")
+        if st.button(":material/refresh: Reconnect", width="stretch"):
+            gateway.clear()
+            st.rerun()
+    st.divider()
+    st.subheader(":material/hub: Cogniverse bridge")
+    st.toggle("Forward live predictions", key="cogniverse_enabled")
+    st.text_input("Cogniverse URL", key="cogniverse_url")
+    st.text_input(
+        "VR session ID (optional)",
+        key="cogniverse_session_id",
+        help="Leave blank to route to the currently active Cogniverse session.",
+    )
+    st.caption(st.session_state.cogniverse_last_status)
     st.divider()
     st.caption("Dashboard refresh: every 2 seconds")
     st.caption("Preview images are overwritten; they are archived only while REC is active.")
@@ -67,11 +112,18 @@ with st.container(horizontal=True, horizontal_alignment="distribute", vertical_a
     st.title(":material/visibility: Adaptive VR Live Monitor")
     st.caption("Upper eyes + lower mouth/chin • Raspberry Pi 4 • ESP32-S3")
 
-if not st.session_state.pi_password:
+if st.session_state.simulation_mode:
+    pi = simulation_gateway()
+    pi.scenario = st.session_state.simulation_scenario
+elif not st.session_state.pi_password:
     st.info(":material/key: Enter the Raspberry Pi password in the sidebar to connect securely.")
     st.stop()
-
-pi = gateway(st.session_state.pi_host.strip(), st.session_state.pi_user.strip(), st.session_state.pi_password)
+else:
+    pi = gateway(
+        st.session_state.pi_host.strip(),
+        st.session_state.pi_user.strip(),
+        st.session_state.pi_password,
+    )
 
 
 def perform(action: str, **values: str) -> None:
@@ -82,6 +134,47 @@ def perform(action: str, **values: str) -> None:
     else:
         st.toast("Raspberry Pi updated", icon=":material/check_circle:")
         st.rerun()
+
+
+def forward_to_cogniverse(predictions: dict[str, object], status: dict[str, object], control: dict[str, object], pi: object) -> None:
+    """Forward the dashboard result without making Cogniverse mandatory."""
+
+    if not st.session_state.cogniverse_enabled:
+        return
+
+    if st.session_state.simulation_mode:
+        state = pi.current_state.value
+        duration_ms = 4_000 if state == StudentState.CONFUSED.value else 1_500
+    else:
+        # The current real CNN predicts facial expressions, not the project
+        # engagement taxonomy. Do not label an expression as confusion here.
+        state = "unknown"
+        duration_ms = 0
+
+    upper_preview = st.session_state.get("_cogniverse_upper_preview")
+    lower_preview = st.session_state.get("_cogniverse_lower_preview")
+    upper_quality = 0.0 if upper_preview is None else max(0.0, 1.0 - upper_preview.age_seconds / 5.0)
+    lower_quality = 0.0 if lower_preview is None else max(0.0, 1.0 - lower_preview.age_seconds / 5.0)
+    session_id = st.session_state.cogniverse_session_id.strip() or None
+    packet = build_dashboard_packet(
+        predictions=predictions,
+        upper_quality=upper_quality,
+        lower_quality=lower_quality,
+        inference_state=state,
+        inference_confidence=float(predictions["fused"].confidence),
+        inference_duration_ms=duration_ms,
+        session_id=session_id,
+        receiver_active=bool(status.get("receiver_active")),
+    )
+    try:
+        response = CogniverseClient(st.session_state.cogniverse_url.strip()).send_features(packet)
+    except CogniverseConnectionError as exc:
+        st.session_state.cogniverse_last_status = f"Bridge error: {exc}"
+    else:
+        accepted = bool(response.get("accepted"))
+        st.session_state.cogniverse_last_status = (
+            f"Last packet: {'accepted' if accepted else 'rejected'} · {time.strftime('%H:%M:%S')}"
+        )
 
 
 with st.container(border=True):
@@ -168,6 +261,14 @@ def live_monitor() -> None:
             border=True,
         )
         st.metric("Synchronized pairs / 10 s", status["sync_10s"], border=True)
+        if st.session_state.simulation_mode:
+            simulated_state = str(status["simulated_state"])
+            st.metric(
+                "Simulated student state",
+                LABEL_NAMES.get(simulated_state, simulated_state),
+                "demo signal",
+                border=True,
+            )
 
     left, right = st.columns(2)
     previews = {}
@@ -204,9 +305,12 @@ def live_monitor() -> None:
             st.warning("CNN paused because at least one camera frame is stale.")
         else:
             try:
-                predictions = cnn_predictor().predict_bytes(
-                    upper_preview.png, lower_preview.png
-                )
+                if st.session_state.simulation_mode:
+                    predictions = simulated_predictions(pi.current_state)
+                else:
+                    predictions = cnn_predictor().predict_bytes(
+                        upper_preview.png, lower_preview.png
+                    )
             except Exception as exc:
                 st.error(f"CNN inference failed: {exc}")
             else:
@@ -223,6 +327,9 @@ def live_monitor() -> None:
                             f"{prediction.confidence:.1%} confidence",
                             border=True,
                         )
+                st.session_state["_cogniverse_upper_preview"] = upper_preview
+                st.session_state["_cogniverse_lower_preview"] = lower_preview
+                forward_to_cogniverse(predictions, status, control, pi)
                 fused = predictions["fused"]
                 probability_data = pd.DataFrame(
                     {

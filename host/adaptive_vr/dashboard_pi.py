@@ -9,7 +9,10 @@ import threading
 import time
 from typing import Any
 
-import paramiko
+try:
+    import paramiko
+except ModuleNotFoundError:  # Simulation mode does not need SSH support.
+    paramiko = None  # type: ignore[assignment]
 from PIL import Image
 
 
@@ -38,6 +41,11 @@ class PiGateway:
         self._lock = threading.RLock()
 
     def _connected_client(self) -> paramiko.SSHClient:
+        if paramiko is None:
+            raise PiConnectionError(
+                "Pi mode requires paramiko. Install the dashboard dependencies with "
+                "python -m pip install 'paramiko>=5,<6'."
+            )
         with self._lock:
             if self._client is not None:
                 transport = self._client.get_transport()
