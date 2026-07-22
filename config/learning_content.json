@@ -11,8 +11,8 @@
     {
       "content_id": "torque",
       "title": "Torque",
-      "expected_duration_seconds": 422,
-      "expected_duration_label": "7:02",
+      "expected_duration_seconds": 46,
+      "expected_duration_label": "0:46",
       "popup_at_seconds": 422,
       "popup_duration_seconds": 30,
       "main_start_seconds": 0,
@@ -113,50 +113,50 @@
     {
       "content_id": "curved_magnets",
       "title": "Curved Magnets",
-      "expected_duration_seconds": 260,
-      "expected_duration_label": "4:20",
+      "expected_duration_seconds": 10,
+      "expected_duration_label": "0:10",
       "path": "D:/AdaptiveVRContent/cogniverse/public/content/dc_motor/submodules/curved_magnets.mp4"
     },
     {
       "content_id": "current_reverse",
       "title": "Current Reverse",
-      "expected_duration_seconds": 31,
-      "expected_duration_label": "0:31",
+      "expected_duration_seconds": 44,
+      "expected_duration_label": "0:44",
       "path": "D:/AdaptiveVRContent/cogniverse/public/content/dc_motor/submodules/current_reverse.mp4"
     },
     {
       "content_id": "multiple_coils",
       "title": "Multiple Coils",
-      "expected_duration_seconds": 60,
-      "expected_duration_label": "1:00",
+      "expected_duration_seconds": 14,
+      "expected_duration_label": "0:14",
       "path": "D:/AdaptiveVRContent/cogniverse/public/content/dc_motor/submodules/multiple_coils.mp4"
     },
     {
       "content_id": "commutator_rings",
       "title": "Commutator Rings",
-      "expected_duration_seconds": 290,
-      "expected_duration_label": "4:50",
+      "expected_duration_seconds": 56,
+      "expected_duration_label": "0:56",
       "path": "D:/AdaptiveVRContent/cogniverse/public/content/dc_motor/submodules/commutator_rings.mp4"
     },
     {
       "content_id": "carbon_brushes",
       "title": "Carbon Brushes",
-      "expected_duration_seconds": 299,
-      "expected_duration_label": "4:59",
+      "expected_duration_seconds": 10,
+      "expected_duration_label": "0:10",
       "path": "D:/AdaptiveVRContent/cogniverse/public/content/dc_motor/submodules/carbon_brushes.mp4"
     },
     {
       "content_id": "magnets",
       "title": "Magnets",
-      "expected_duration_seconds": 44,
-      "expected_duration_label": "0:44",
+      "expected_duration_seconds": 31,
+      "expected_duration_label": "0:31",
       "path": "D:/AdaptiveVRContent/cogniverse/public/content/dc_motor/submodules/magnets.mp4"
     },
     {
       "content_id": "electromagnet",
       "title": "Electromagnet",
-      "expected_duration_seconds": 14,
-      "expected_duration_label": "0:14",
+      "expected_duration_seconds": 60,
+      "expected_duration_label": "1:00",
       "path": "D:/AdaptiveVRContent/cogniverse/public/content/dc_motor/submodules/electromagnet.mp4"
     }
   ],

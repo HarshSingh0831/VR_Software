@@ -70,6 +70,17 @@ def test_cogniverse_content_manifest_preserves_module_order():
         "electromagnet",
     ]
     modules = content["expected_modules"]
+    assert {module["content_id"]: module["popup_at_seconds"] for module in modules} == {
+        "torque": 422,
+        "curved_magnets": 260,
+        "current_reverse": 335,
+        "multiple_coils": 374,
+        "commutator_rings": 290,
+        "carbon_brushes": 299,
+        "magnets": 73,
+        "electromagnet": 155,
+    }
+    assert all(module["popup_duration_seconds"] == 30 for module in modules)
     assert modules[0]["main_start_seconds"] == 0
     assert modules[-1]["main_end_seconds"] == 2208
     assert all(
