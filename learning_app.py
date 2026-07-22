@@ -595,6 +595,18 @@ def requested_subcontent(transcript: str) -> str | None:
 
 
 def apply_command(action: str, questions: list[dict[str, object]]) -> None:
+    if action == "RETURN_TO_MAIN_VIDEO":
+        ready, _, _ = connected_device_status()
+        if not ready:
+            st.session_state.command_feedback = (
+                "Playback is locked until both laptop and smartphone are connected."
+            )
+            return
+        resume_main_video("voice_command")
+        st.session_state.lesson_active = True
+        st.session_state.quiz_phase = "hidden"
+        st.session_state.command_feedback = "Continuing the main video."
+        return
     if action in {"PLAY", "RESUME", "RESUME_SESSION", "START_SESSION"}:
         ready, _, _ = connected_device_status()
         if not ready:

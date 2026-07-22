@@ -19,6 +19,12 @@ class CommandCatalogueTests(unittest.TestCase):
     def test_session_command(self):
         self.assertEqual(detect_command("lesson khatam karo").action, "END_SESSION")
 
+    def test_continue_main_video_command(self):
+        self.assertEqual(
+            detect_command("continue main video").action,
+            "RETURN_TO_MAIN_VIDEO",
+        )
+
     def test_documented_event_format(self):
         command = detect_command("ye part dobara chalao")
         event = build_command_event(

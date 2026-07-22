@@ -1,25 +1,48 @@
+# Virtual environment
 .venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Existing ignores
 .arduino/
 .tools/
 .docx_review/
 .video_review/
 .downloads/
 .rpi-provisioning/
-__pycache__/
-*.py[cod]
+
 firmware/esp32_local_processor/secrets.h
+
 models/
 *.zip
 *.log
+
 .streamlit/secrets.toml
+
 certs/
 .checkpoints/
 captures/
 data/
 paper_artifacts/
+
 firmware/esp32_local_processor/build/
+
 output/*
 !output/pdf/
 output/pdf/*
 !output/pdf/Adaptive_VR_Project_Handoff.pdf
+
 tmp/
