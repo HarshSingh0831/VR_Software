@@ -2,6 +2,7 @@
   {
     "id": "mid_part_1_q1",
     "section": "DC Motor - MID PART 1",
+    "topic": "Electrical Circuit",
     "video_range": "0:00-4:50",
     "question": "What is the primary function of a simple electrical circuit?",
     "options": [
@@ -16,6 +17,7 @@
   {
     "id": "mid_part_1_q2",
     "section": "DC Motor - MID PART 1",
+    "topic": "Magnetic Force",
     "video_range": "0:00-4:50",
     "question": "Why does a current-carrying conductor move when placed inside a magnetic field?",
     "options": [
@@ -30,6 +32,7 @@
   {
     "id": "mid_part_1_q3",
     "section": "DC Motor - MID PART 1",
+    "topic": "Armature",
     "video_range": "0:00-4:50",
     "question": "In a DC motor, the rotating coil is also called the:",
     "options": ["Stator", "Brush", "Armature (Rotor)", "Commutator"],
@@ -39,6 +42,7 @@
   {
     "id": "mid_part_1_q4",
     "section": "DC Motor - MID PART 1",
+    "topic": "Armature",
     "video_range": "0:00-4:50",
     "question": "The main purpose of the armature in a DC motor is to:",
     "options": [
@@ -53,6 +57,7 @@
   {
     "id": "mid_part_1_q5",
     "section": "DC Motor - MID PART 1",
+    "topic": "Torque and Current Reversal",
     "video_range": "0:00-4:50",
     "question": "Why can't a single-coil DC motor rotate continuously without current reversal?",
     "options": [
@@ -67,6 +72,7 @@
   {
     "id": "mid_part_1_q6",
     "section": "DC Motor - MID PART 1",
+    "topic": "Commutator",
     "video_range": "0:00-4:50",
     "question": "The commutator is mainly responsible for:",
     "options": [
@@ -81,6 +87,7 @@
   {
     "id": "mid_part_1_q7",
     "section": "DC Motor - MID PART 1",
+    "topic": "Energy Conversion",
     "video_range": "0:00-4:50",
     "question": "Which energy conversion takes place in a DC motor?",
     "options": [
@@ -95,6 +102,7 @@
   {
     "id": "last_part_q1",
     "section": "DC Motor - LAST PART",
+    "topic": "Brushes",
     "video_range": "4:50-9:10",
     "question": "What is the primary function of the brushes in a DC motor?",
     "options": [
@@ -109,6 +117,7 @@
   {
     "id": "last_part_q2",
     "section": "DC Motor - LAST PART",
+    "topic": "Curved Magnets",
     "video_range": "4:50-9:10",
     "question": "Why are curved magnetic pole faces used in practical DC motors?",
     "options": [
@@ -123,6 +132,7 @@
   {
     "id": "last_part_q3",
     "section": "DC Motor - LAST PART",
+    "topic": "Multiple Coils",
     "video_range": "4:50-9:10",
     "question": "What is the main advantage of using multiple armature coils instead of a single coil?",
     "options": [
@@ -137,6 +147,7 @@
   {
     "id": "last_part_q4",
     "section": "DC Motor - LAST PART",
+    "topic": "Motor Components",
     "video_range": "4:50-9:10",
     "question": "Which of the following is NOT a main component of a practical DC motor?",
     "options": ["Rotor (Armature)", "Brushes", "Capacitor", "Commutator"],
@@ -146,6 +157,7 @@
   {
     "id": "last_part_q5",
     "section": "DC Motor - LAST PART",
+    "topic": "Brushes and Commutator",
     "video_range": "4:50-9:10",
     "question": "During the complete working process of a DC motor, current first reaches the armature through:",
     "options": ["Shaft to Rotor", "Brushes to Commutator", "Magnet to Rotor", "Bearings to Shaft"],
@@ -155,6 +167,7 @@
   {
     "id": "last_part_q6",
     "section": "DC Motor - LAST PART",
+    "topic": "Brushes and Commutator",
     "video_range": "4:50-9:10",
     "question": "What is the combined role of the commutator and brushes?",
     "options": [
@@ -169,6 +182,7 @@
   {
     "id": "last_part_q7",
     "section": "DC Motor - LAST PART",
+    "topic": "Multiple Coils and Curved Magnets",
     "video_range": "4:50-9:10",
     "question": "Which statement best explains why practical DC motors rotate more smoothly than a simple single-coil motor?",
     "options": [

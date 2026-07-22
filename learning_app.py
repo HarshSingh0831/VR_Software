@@ -16,7 +16,11 @@ import streamlit as st
 from adaptive_vr.commands import build_command_event
 from adaptive_vr.cnn_inference import UpperFaceCnnPredictor
 from adaptive_vr.dashboard_pi import PiConnectionError, PiGateway
-from adaptive_vr.learning_log import append_learning_event, summarize_learning_events
+from adaptive_vr.learning_log import (
+    append_learning_event,
+    summarize_learning_events,
+    summarize_topic_clarity,
+)
 from adaptive_vr.speech_analysis import analyze_transcript
 
 
@@ -49,6 +53,7 @@ def shared_dashboard_bus() -> dict[str, object]:
         "version": 0,
         "origin": "",
         "state": {},
+        "clients": {},
     }
 
 PLAYER_CONTROLLER = st.components.v2.component(
@@ -343,6 +348,27 @@ def initialize_state() -> None:
 initialize_state()
 
 
+def current_device_kind() -> str:
+    try:
+        user_agent = str(st.context.headers.get("User-Agent", "")).casefold()
+    except Exception:
+        user_agent = ""
+    return "smartphone" if any(token in user_agent for token in ("android", "iphone", "mobile")) else "laptop"
+
+
+def connected_device_status() -> tuple[bool, int, int]:
+    bus = shared_dashboard_bus()
+    now = time.monotonic()
+    with bus["lock"]:
+        clients = bus["clients"]
+        expired = [client_id for client_id, item in clients.items() if now - float(item["seen_at"]) > 6]
+        for client_id in expired:
+            clients.pop(client_id, None)
+        laptop_count = sum(item["kind"] == "laptop" for item in clients.values())
+        phone_count = sum(item["kind"] == "smartphone" for item in clients.values())
+    return laptop_count > 0 and phone_count > 0, laptop_count, phone_count
+
+
 @st.cache_data
 def load_quiz(path: str) -> list[dict[str, object]]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -468,6 +494,12 @@ def submit_answer(questions: list[dict[str, object]], source: str) -> bool:
 
 
 def start_subcontent(content_id: str, source: str) -> None:
+    ready, _, _ = connected_device_status()
+    if not ready:
+        st.session_state.command_feedback = (
+            "Connect both the laptop and smartphone to this same dashboard before playback."
+        )
+        return
     video = next(
         (item for item in configured_videos if item["content_id"] == content_id), None
     )
@@ -522,6 +554,12 @@ def requested_subcontent(transcript: str) -> str | None:
 
 def apply_command(action: str, questions: list[dict[str, object]]) -> None:
     if action in {"PLAY", "RESUME", "RESUME_SESSION", "START_SESSION"}:
+        ready, _, _ = connected_device_status()
+        if not ready:
+            st.session_state.command_feedback = (
+                "Playback is locked until both laptop and smartphone are connected."
+            )
+            return
         st.session_state.media_status = "playing"
         st.session_state.lesson_active = True
         queue_player_command("play")
@@ -698,6 +736,17 @@ expected_modules = list(content_config.get("expected_modules", []))
 def shared_dashboard_feed() -> None:
     bus = shared_dashboard_bus()
     with bus["lock"]:
+        bus["clients"][st.session_state.dashboard_client_id] = {
+            "kind": current_device_kind(),
+            "seen_at": time.monotonic(),
+        }
+        now = time.monotonic()
+        for client_id in [
+            client_id
+            for client_id, client in bus["clients"].items()
+            if now - float(client.get("seen_at", 0.0)) > 6.0
+        ]:
+            bus["clients"].pop(client_id, None)
         version = int(bus["version"])
         origin = str(bus["origin"])
         shared = dict(bus["state"])
@@ -706,7 +755,9 @@ def shared_dashboard_feed() -> None:
         or origin == st.session_state.dashboard_client_id
         or not shared
     ):
-        st.caption(":material/sync: Laptop and smartphone synchronization active")
+        ready, laptops, phones = connected_device_status()
+        status = "ready" if ready else f"waiting (laptop {laptops}, smartphone {phones})"
+        st.caption(f":material/sync: Shared playback synchronization {status}")
         return
     st.session_state.shared_dashboard_version = version
     for key in (
@@ -835,6 +886,21 @@ with st.sidebar:
 st.title(":material/school: Adaptive VR learning studio")
 st.caption("DC motor content, MID PART 1 quiz, bilingual commands, upper-camera monitoring, and learning analytics")
 shared_dashboard_feed()
+dual_device_ready, laptop_count, smartphone_count = connected_device_status()
+
+with st.container(border=True):
+    st.subheader(":material/devices: Laptop + smartphone connection check")
+    with st.container(horizontal=True):
+        st.metric("Laptop", "CONNECTED" if laptop_count else "WAITING", border=True)
+        st.metric("Smartphone", "CONNECTED" if smartphone_count else "WAITING", border=True)
+        st.metric("Synchronized playback", "READY" if dual_device_ready else "LOCKED", border=True)
+    if dual_device_ready:
+        st.success("Both devices are active on this server. Playback commands will synchronize.")
+    else:
+        st.warning(
+            "Before pressing Play, open this same HTTPS port 8502 dashboard on both devices. "
+            "The local port 8501 preview is a separate server and cannot join smartphone playback."
+        )
 
 summary = summarize_learning_events(st.session_state.events)
 with st.container(horizontal=True):
@@ -929,13 +995,18 @@ with content_column:
                         record_event("quiz_started", {"phase": "mid", "position": playback.get("position")})
                     elif event_type == "final_quiz":
                         st.session_state.quiz_phase = "final"
-                        st.session_state.question_index = 3
+                        st.session_state.question_index = 7
                         st.session_state.media_status = "paused"
                         record_event("quiz_started", {"phase": "final"})
                     st.rerun()
             st.caption(":material/volume_up: Audio plays through the speaker of the device running this browser.")
         with st.container(horizontal=True):
-            if st.button("Play", icon=":material/play_arrow:"):
+            if st.button(
+                "Play",
+                icon=":material/play_arrow:",
+                disabled=not dual_device_ready,
+                help="Connect both laptop and smartphone first." if not dual_device_ready else None,
+            ):
                 st.session_state.lesson_active = True
                 st.session_state.media_status = "playing"
                 queue_player_command("play")
@@ -982,6 +1053,7 @@ with control_column:
                 key=f"dashboard_module_{module['content_id']}",
                 icon=":material/play_circle:",
                 width="stretch",
+                disabled=not dual_device_ready,
             ):
                 start_subcontent(str(module["content_id"]), "dashboard_list")
                 st.rerun()
@@ -1210,6 +1282,25 @@ with st.container(border=True):
         st.metric("Help / replay", summary["help_requests"] + summary["replay_requests"], border=True)
     if st.session_state.attempts:
         st.dataframe(pd.DataFrame(st.session_state.attempts), hide_index=True, width="stretch")
+        topic_clarity = summarize_topic_clarity(st.session_state.attempts, questions)
+        st.subheader(":material/topic: Topic clarity from quiz answers")
+        st.dataframe(
+            [
+                {
+                    "Topic": row["topic"],
+                    "Score": f"{row['accuracy']:.0%}",
+                    "Result": "Clear" if row["clear"] else "Review needed",
+                }
+                for row in topic_clarity
+            ],
+            hide_index=True,
+            width="stretch",
+        )
+        unclear_topics = [str(row["topic"]) for row in topic_clarity if not row["clear"]]
+        if unclear_topics:
+            st.warning("Topics not clear to the learner: " + ", ".join(unclear_topics))
+        elif st.session_state.quiz_phase == "complete":
+            st.success("All assessed topics are clear at the 70% threshold.")
     else:
         st.info("Submit quiz answers to populate the learning analysis.")
     if st.session_state.events:

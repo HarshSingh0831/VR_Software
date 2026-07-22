@@ -1,6 +1,10 @@
 import json
 
-from adaptive_vr.learning_log import append_learning_event, summarize_learning_events
+from adaptive_vr.learning_log import (
+    append_learning_event,
+    summarize_learning_events,
+    summarize_topic_clarity,
+)
 
 
 def test_learning_events_are_persisted_and_summarized(tmp_path):
@@ -48,10 +52,30 @@ def test_dc_motor_quiz_has_valid_answer_keys():
     assert sum(question["section"].endswith("LAST PART") for question in questions) == 7
     assert all(len(question["options"]) == 4 for question in questions)
     assert all(0 <= question["correct_index"] < 4 for question in questions)
+    assert all(question.get("topic") for question in questions)
     assert [question["correct_index"] for question in questions] == [
         2, 1, 2, 1, 2, 2, 2,
         1, 2, 2, 2, 1, 2, 1,
     ]
+
+
+def test_topic_clarity_groups_attempts_by_question_topic():
+    questions = [
+        {"id": "a1", "topic": "Armature"},
+        {"id": "a2", "topic": "Armature"},
+        {"id": "b1", "topic": "Brushes"},
+    ]
+    attempts = [
+        {"question_id": "a1", "correct": True},
+        {"question_id": "a2", "correct": False},
+        {"question_id": "b1", "correct": True},
+    ]
+    result = summarize_topic_clarity(attempts, questions)
+    by_topic = {row["topic"]: row for row in result}
+    assert by_topic["Armature"]["accuracy"] == 0.5
+    assert by_topic["Armature"]["clear"] is False
+    assert by_topic["Brushes"]["accuracy"] == 1.0
+    assert by_topic["Brushes"]["clear"] is True
 
 
 def test_cogniverse_content_manifest_preserves_module_order():

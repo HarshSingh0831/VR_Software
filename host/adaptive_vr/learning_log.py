@@ -72,3 +72,34 @@ def summarize_learning_events(events: Iterable[dict[str, Any]]) -> dict[str, flo
             for row in commands
         ),
     }
+
+
+def summarize_topic_clarity(
+    attempts: Iterable[dict[str, Any]],
+    questions: Iterable[dict[str, Any]],
+    *,
+    clear_threshold: float = 0.7,
+) -> list[dict[str, Any]]:
+    question_topics = {
+        str(question["id"]): str(question.get("topic", "General DC Motor"))
+        for question in questions
+    }
+    topic_rows: dict[str, dict[str, int]] = {}
+    for attempt in attempts:
+        topic = question_topics.get(str(attempt.get("question_id")), "General DC Motor")
+        row = topic_rows.setdefault(topic, {"attempts": 0, "correct": 0})
+        row["attempts"] += 1
+        row["correct"] += int(bool(attempt.get("correct")))
+    result = []
+    for topic, values in topic_rows.items():
+        accuracy = values["correct"] / values["attempts"]
+        result.append(
+            {
+                "topic": topic,
+                "attempts": values["attempts"],
+                "correct": values["correct"],
+                "accuracy": accuracy,
+                "clear": accuracy >= clear_threshold,
+            }
+        )
+    return sorted(result, key=lambda row: (row["clear"], row["accuracy"], row["topic"]))
