@@ -10,5 +10,7 @@ baseRadius = "0.75rem"
 
 [server]
 headless = true
-address = "127.0.0.1"
-port = 8501
+address = "0.0.0.0"
+port = 8502
+sslCertFile = "certs/adaptive_vr_server.crt"
+sslKeyFile = "certs/adaptive_vr_server.key"

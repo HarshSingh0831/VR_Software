@@ -1,0 +1,183 @@
+[
+  {
+    "id": "mid_part_1_q1",
+    "section": "DC Motor - MID PART 1",
+    "video_range": "0:00-4:50",
+    "question": "What is the primary function of a simple electrical circuit?",
+    "options": [
+      "To store magnetic energy",
+      "To convert mechanical energy into heat",
+      "To allow electric current to flow from a power source through a load",
+      "To generate permanent magnetism"
+    ],
+    "correct_index": 2,
+    "hint": ""
+  },
+  {
+    "id": "mid_part_1_q2",
+    "section": "DC Motor - MID PART 1",
+    "video_range": "0:00-4:50",
+    "question": "Why does a current-carrying conductor move when placed inside a magnetic field?",
+    "options": [
+      "The conductor becomes permanently magnetized.",
+      "The interaction between the magnetic field and electric current produces a force.",
+      "The conductor loses electrical resistance.",
+      "The magnetic field disappears."
+    ],
+    "correct_index": 1,
+    "hint": ""
+  },
+  {
+    "id": "mid_part_1_q3",
+    "section": "DC Motor - MID PART 1",
+    "video_range": "0:00-4:50",
+    "question": "In a DC motor, the rotating coil is also called the:",
+    "options": ["Stator", "Brush", "Armature (Rotor)", "Commutator"],
+    "correct_index": 2,
+    "hint": ""
+  },
+  {
+    "id": "mid_part_1_q4",
+    "section": "DC Motor - MID PART 1",
+    "video_range": "0:00-4:50",
+    "question": "The main purpose of the armature in a DC motor is to:",
+    "options": [
+      "Supply electrical power",
+      "Rotate and produce mechanical motion due to magnetic forces",
+      "Reverse battery polarity",
+      "Hold the brushes in place"
+    ],
+    "correct_index": 1,
+    "hint": ""
+  },
+  {
+    "id": "mid_part_1_q5",
+    "section": "DC Motor - MID PART 1",
+    "video_range": "0:00-4:50",
+    "question": "Why can't a single-coil DC motor rotate continuously without current reversal?",
+    "options": [
+      "The battery gets discharged quickly.",
+      "The magnetic field disappears after one rotation.",
+      "The rotor reaches a position where torque becomes zero or very small.",
+      "The brushes stop touching the commutator."
+    ],
+    "correct_index": 2,
+    "hint": ""
+  },
+  {
+    "id": "mid_part_1_q6",
+    "section": "DC Motor - MID PART 1",
+    "video_range": "0:00-4:50",
+    "question": "The commutator is mainly responsible for:",
+    "options": [
+      "Increasing the motor speed",
+      "Cooling the armature",
+      "Reversing the current through the armature coil at the correct time",
+      "Generating electrical power"
+    ],
+    "correct_index": 2,
+    "hint": ""
+  },
+  {
+    "id": "mid_part_1_q7",
+    "section": "DC Motor - MID PART 1",
+    "video_range": "0:00-4:50",
+    "question": "Which energy conversion takes place in a DC motor?",
+    "options": [
+      "Mechanical to Electrical",
+      "Chemical to Thermal",
+      "Electrical to Mechanical (Rotational)",
+      "Thermal to Electrical"
+    ],
+    "correct_index": 2,
+    "hint": ""
+  },
+  {
+    "id": "last_part_q1",
+    "section": "DC Motor - LAST PART",
+    "video_range": "4:50-9:10",
+    "question": "What is the primary function of the brushes in a DC motor?",
+    "options": [
+      "To increase the magnetic field strength",
+      "To provide electrical contact between the power supply and rotating commutator",
+      "To rotate the armature directly",
+      "To cool the rotor"
+    ],
+    "correct_index": 1,
+    "hint": ""
+  },
+  {
+    "id": "last_part_q2",
+    "section": "DC Motor - LAST PART",
+    "video_range": "4:50-9:10",
+    "question": "Why are curved magnetic pole faces used in practical DC motors?",
+    "options": [
+      "To reduce battery voltage",
+      "To make the motor lighter",
+      "To provide a more uniform magnetic field around the armature and improve performance",
+      "To eliminate the commutator"
+    ],
+    "correct_index": 2,
+    "hint": ""
+  },
+  {
+    "id": "last_part_q3",
+    "section": "DC Motor - LAST PART",
+    "video_range": "4:50-9:10",
+    "question": "What is the main advantage of using multiple armature coils instead of a single coil?",
+    "options": [
+      "It reduces electrical current.",
+      "It removes the need for brushes.",
+      "It reduces dead spots and provides smoother, continuous torque.",
+      "It increases battery life."
+    ],
+    "correct_index": 2,
+    "hint": ""
+  },
+  {
+    "id": "last_part_q4",
+    "section": "DC Motor - LAST PART",
+    "video_range": "4:50-9:10",
+    "question": "Which of the following is NOT a main component of a practical DC motor?",
+    "options": ["Rotor (Armature)", "Brushes", "Capacitor", "Commutator"],
+    "correct_index": 2,
+    "hint": ""
+  },
+  {
+    "id": "last_part_q5",
+    "section": "DC Motor - LAST PART",
+    "video_range": "4:50-9:10",
+    "question": "During the complete working process of a DC motor, current first reaches the armature through:",
+    "options": ["Shaft to Rotor", "Brushes to Commutator", "Magnet to Rotor", "Bearings to Shaft"],
+    "correct_index": 1,
+    "hint": ""
+  },
+  {
+    "id": "last_part_q6",
+    "section": "DC Motor - LAST PART",
+    "video_range": "4:50-9:10",
+    "question": "What is the combined role of the commutator and brushes?",
+    "options": [
+      "To reduce motor weight",
+      "To increase battery voltage",
+      "To maintain electrical contact and reverse current at the correct time for continuous rotation",
+      "To cool the magnetic poles"
+    ],
+    "correct_index": 2,
+    "hint": ""
+  },
+  {
+    "id": "last_part_q7",
+    "section": "DC Motor - LAST PART",
+    "video_range": "4:50-9:10",
+    "question": "Which statement best explains why practical DC motors rotate more smoothly than a simple single-coil motor?",
+    "options": [
+      "They use a stronger battery only.",
+      "They have multiple coils and shaped magnetic poles that provide more continuous torque.",
+      "They do not require magnetic fields.",
+      "They eliminate the need for current reversal."
+    ],
+    "correct_index": 1,
+    "hint": ""
+  }
+]

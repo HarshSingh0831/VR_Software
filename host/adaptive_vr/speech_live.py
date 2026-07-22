@@ -80,6 +80,7 @@ class LiveSpeechRecognizer:
         device: int | str | None = None,
         context: str | None = None,
         session_id: str = "development_session",
+        output_path: Path | None = None,
     ):
         if language not in {"en", "hi", "auto"}:
             raise ValueError("language must be en, hi, or auto")
@@ -90,6 +91,10 @@ class LiveSpeechRecognizer:
         self.device = device
         self.context = context
         self.session_id = session_id
+        self.output_path = Path(output_path) if output_path else None
+        if self.output_path is not None:
+            self.output_path.parent.mkdir(parents=True, exist_ok=True)
+            self.output_path.touch(exist_ok=True)
         self.audio_queue: queue.Queue[bytes] = queue.Queue(maxsize=30)
         paths = model_paths or DEFAULT_MODELS
         languages = ("en", "hi") if language == "auto" else (language,)
@@ -160,7 +165,12 @@ class LiveSpeechRecognizer:
                         detected_language=event.language,
                         timestamp_ms=event.timestamp_ms,
                     ).to_dict()
-                print(json.dumps(output, ensure_ascii=False))
+                serialized = json.dumps(output, ensure_ascii=False)
+                print(json.dumps(output, ensure_ascii=True), flush=True)
+                if self.output_path is not None:
+                    self.output_path.parent.mkdir(parents=True, exist_ok=True)
+                    with self.output_path.open("a", encoding="utf-8") as stream:
+                        stream.write(serialized + "\n")
 
 
 def main() -> None:
@@ -172,6 +182,7 @@ def main() -> None:
     parser.add_argument("--list-devices", action="store_true")
     parser.add_argument("--english-model", type=Path, default=DEFAULT_MODELS["en"])
     parser.add_argument("--hindi-model", type=Path, default=DEFAULT_MODELS["hi"])
+    parser.add_argument("--output", type=Path, help="Append recognized events as JSON Lines")
     args = parser.parse_args()
     if args.list_devices:
         print(json.dumps(list_input_devices(), indent=2, ensure_ascii=False))
@@ -185,6 +196,7 @@ def main() -> None:
         device=device,
         context=args.context,
         session_id=args.session_id,
+        output_path=args.output,
     )
     try:
         service.run()

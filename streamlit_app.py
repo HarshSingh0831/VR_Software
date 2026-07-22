@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 import time
 
 import pandas as pd
 import streamlit as st
 
 from adaptive_vr.dashboard_pi import PiConnectionError, PiGateway
-from adaptive_vr.cnn_inference import PartialFaceCnnPredictor
+from adaptive_vr.cnn_inference import UpperFaceCnnPredictor
 from adaptive_vr.taxonomy import STATE_ENGAGEMENT, StudentState
 
 
@@ -17,11 +18,14 @@ st.set_page_config(
     layout="wide",
 )
 
-LABELS = [state.value for state in StudentState]
+LABELS = ["focused", "confused", "happy", "bored", "drowsy"]
 LABEL_NAMES = {state.value: state.value.replace("_", " ").title() for state in StudentState}
 SAFE_COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")
 
-st.session_state.setdefault("pi_host", "172.18.57.77")
+PROJECT_ROOT = Path(__file__).resolve().parent
+PI_KEY = PROJECT_ROOT / ".rpi-provisioning" / "private" / "adaptive_vr_pi_ed25519"
+
+st.session_state.setdefault("pi_host", "10.126.112.77")
 st.session_state.setdefault("pi_user", "vrpi")
 st.session_state.setdefault("pi_password", "")
 st.session_state.setdefault("participant", "P001")
@@ -31,13 +35,13 @@ st.session_state.setdefault("new_label", "focused")
 
 
 @st.cache_resource(max_entries=4)
-def gateway(host: str, username: str, password: str) -> PiGateway:
-    return PiGateway(host, username, password)
+def gateway(host: str, username: str, password: str, key_filename: str) -> PiGateway:
+    return PiGateway(host, username, password, key_filename=key_filename or None)
 
 
 @st.cache_resource
-def cnn_predictor() -> PartialFaceCnnPredictor:
-    return PartialFaceCnnPredictor("models/cnn", task="expression")
+def cnn_predictor() -> UpperFaceCnnPredictor:
+    return UpperFaceCnnPredictor("models/cnn", task="expression")
 
 
 def validate_component(value: str, field: str, *, optional: bool = False) -> str:
@@ -54,7 +58,7 @@ with st.sidebar:
     st.text_input("Pi address", key="pi_host")
     st.text_input("Username", key="pi_user")
     st.text_input("Pi password", type="password", key="pi_password")
-    st.caption("The password stays in this browser session and is not written to the project.")
+    st.caption("Password is optional; the local project SSH key is used when left blank.")
     if st.button(":material/refresh: Reconnect", width="stretch"):
         gateway.clear()
         st.rerun()
@@ -65,13 +69,18 @@ with st.sidebar:
 
 with st.container(horizontal=True, horizontal_alignment="distribute", vertical_alignment="center"):
     st.title(":material/visibility: Adaptive VR Live Monitor")
-    st.caption("Upper eyes + lower mouth/chin • Raspberry Pi 4 • ESP32-S3")
+    st.caption("Upper-camera mode: eyes + eyebrows • ESP32-S3 • 5 engagement states")
 
-if not st.session_state.pi_password:
+if not st.session_state.pi_password and not PI_KEY.exists():
     st.info(":material/key: Enter the Raspberry Pi password in the sidebar to connect securely.")
     st.stop()
 
-pi = gateway(st.session_state.pi_host.strip(), st.session_state.pi_user.strip(), st.session_state.pi_password)
+pi = gateway(
+    st.session_state.pi_host.strip(),
+    st.session_state.pi_user.strip(),
+    st.session_state.pi_password,
+    str(PI_KEY) if PI_KEY.exists() else "",
+)
 
 
 def perform(action: str, **values: str) -> None:
@@ -162,72 +171,49 @@ def live_monitor() -> None:
             "CONNECTED" if status["upper_connected"] else "DISCONNECTED",
             border=True,
         )
-        st.metric(
-            "Pi lower camera",
-            "CONNECTED" if status["lower_connected"] and status["lower_active"] else "DISCONNECTED",
-            border=True,
-        )
-        st.metric("Synchronized pairs / 10 s", status["sync_10s"], border=True)
-
-    left, right = st.columns(2)
-    previews = {}
-    for column, role, title, description in (
-        (left, "upper_face", "Upper face — ESP32-S3", "Eyes and eyebrows"),
-        (right, "lower_face", "Lower face — Pi Camera", "Lips, mouth and chin"),
-    ):
-        with column:
-            with st.container(border=True):
-                st.subheader(title)
-                st.caption(description)
-                try:
-                    preview = pi.preview(role, None if session_id == "none" else session_id)
-                except PiConnectionError as exc:
-                    st.warning(f"Preview unavailable: {exc}")
-                    continue
-                if preview is None:
-                    st.info("Waiting for the first camera preview frame…")
-                else:
-                    previews[role] = preview
-                    st.image(preview.png, width="stretch")
-                    if preview.age_seconds <= 5:
-                        st.success(f"LIVE • frame age {preview.age_seconds:.1f} s")
-                    else:
-                        st.warning(f"STALE • last frame {preview.age_seconds:.1f} s ago")
+        st.metric("Training mode", "UPPER CAMERA ONLY", border=True)
 
     with st.container(border=True):
-        st.subheader(":material/psychology: Live two-camera CNN")
-        upper_preview = previews.get("upper_face")
-        lower_preview = previews.get("lower_face")
-        if upper_preview is None or lower_preview is None:
-            st.info("Waiting for both synchronized camera previews…")
-        elif upper_preview.age_seconds > 5 or lower_preview.age_seconds > 5:
-            st.warning("CNN paused because at least one camera frame is stale.")
+        st.subheader("Upper face — ESP32-S3")
+        st.caption("Eyes and eyebrows; low-light normalization enabled")
+        try:
+            upper_preview = pi.preview(
+                "upper_face", None if session_id == "none" else session_id
+            )
+        except PiConnectionError as exc:
+            st.warning(f"Preview unavailable: {exc}")
+            upper_preview = None
+        if upper_preview is None:
+            st.info("Waiting for the first upper-camera preview frame…")
+        else:
+            st.image(upper_preview.png, width="stretch")
+            if upper_preview.age_seconds <= 5:
+                st.success(f"LIVE • frame age {upper_preview.age_seconds:.1f} s")
+            else:
+                st.warning(f"STALE • last frame {upper_preview.age_seconds:.1f} s ago")
+
+    with st.container(border=True):
+        st.subheader(":material/psychology: Live upper-camera CNN")
+        if upper_preview is None:
+            st.info("Waiting for the upper-camera preview…")
+        elif upper_preview.age_seconds > 5:
+            st.warning("CNN paused because the upper-camera frame is stale.")
         else:
             try:
-                predictions = cnn_predictor().predict_bytes(
-                    upper_preview.png, lower_preview.png
-                )
+                prediction = cnn_predictor().predict_bytes(upper_preview.png)
             except Exception as exc:
                 st.error(f"CNN inference failed: {exc}")
             else:
-                with st.container(horizontal=True):
-                    for key, title in (
-                        ("upper_face", "Upper expression"),
-                        ("lower_face", "Lower expression"),
-                        ("fused", "Fused expression"),
-                    ):
-                        prediction = predictions[key]
-                        st.metric(
-                            title,
-                            prediction.label.replace("_", " ").title(),
-                            f"{prediction.confidence:.1%} confidence",
-                            border=True,
-                        )
-                fused = predictions["fused"]
+                st.metric(
+                    "Upper-camera expression",
+                    prediction.label.replace("_", " ").title(),
+                    f"{prediction.confidence:.1%} confidence",
+                    border=True,
+                )
                 probability_data = pd.DataFrame(
                     {
-                        "Expression": [label.title() for label in fused.probabilities],
-                        "Probability": list(fused.probabilities.values()),
+                        "Expression": [label.title() for label in prediction.probabilities],
+                        "Probability": list(prediction.probabilities.values()),
                     }
                 )
                 st.bar_chart(

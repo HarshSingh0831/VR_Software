@@ -92,7 +92,7 @@ try {
         throw "Required Raspberry Pi boot files were not found."
     }
 
-    Set-InjectionStatus -Phase "injecting" -Message "Forcing Vivo v40 Wi-Fi."
+    Set-InjectionStatus -Phase "injecting" -Message "Forcing vivo V40e Wi-Fi."
     [System.IO.File]::WriteAllBytes(
         $targetScript,
         [System.IO.File]::ReadAllBytes($sourceScript)
@@ -119,7 +119,7 @@ try {
         throw "The force-Vivo boot hook failed verification."
     }
 
-    $message = "Vivo-only network correction verified on bootfs $letter`:."
+    $message = "vivo V40e network correction verified on bootfs $letter`:."
     Set-InjectionStatus -Phase "complete" -ExitCode 0 -Message $message
     Write-Host $message
 

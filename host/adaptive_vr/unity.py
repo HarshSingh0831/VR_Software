@@ -25,10 +25,12 @@ class UnityEvent:
 
 
 def adaptive_message(
-    prediction: StatePrediction, stable: StableState, action: AdaptiveAction
+    prediction: StatePrediction,
+    stable: StableState,
+    action: AdaptiveAction,
+    recommended_content: list[dict[str, Any]] | None = None,
 ) -> str:
-    return json.dumps(
-        {
+    payload: dict[str, Any] = {
             "type": "adaptive_state",
             "timestamp_ms": prediction.timestamp_ms,
             "engagement": prediction.engagement.value,
@@ -38,7 +40,21 @@ def adaptive_message(
             "state_changed": stable.changed,
             "reasons": list(prediction.reasons),
             "adaptive_action": asdict(action),
-        },
+        }
+    if recommended_content and action.action in {
+        "simplify",
+        "support",
+        "increase_interactivity",
+        "offer_help",
+    }:
+        payload["subcontent_popup"] = {
+            "presentation": "small_popup",
+            "dismissible": True,
+            "pause_main_content": True,
+            "title": "Need a short explanation?",
+            "options": recommended_content,
+        }
+    return json.dumps(
+        payload,
         separators=(",", ":"),
     )
-

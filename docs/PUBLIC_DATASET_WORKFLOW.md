@@ -43,7 +43,7 @@ models/trained/                         Models and JSON evaluation reports
   --model-dir models\trained --task expression --split test
 ```
 
-## Import real headset sessions
+## Import and fine-tune on real headset sessions
 
 Download one or more Pi calibration session directories, then build the
 subject-separated `vr_state` manifest:
@@ -55,20 +55,37 @@ subject-separated `vr_state` manifest:
   --output models\datasets\headset_vr
 ```
 
-The same trainer accepts `--task vr_state`. Keep every participant entirely in
-one split; never put frames from one person in both training and evaluation.
+Keep every participant entirely in one split; never put frames from one person
+in both training and evaluation. Record all 12 states for each participant and
+include enough participant IDs for non-empty train, validation, and test splits.
 
-## Dataset access still requiring the researcher
+The complete two-camera fine-tuning command is:
 
-- DAiSEE is approximately 15 GB. IIT Hyderabad requires a researcher to fill
-  in its form and accept research-use and redistribution conditions before the
-  download is provided: <https://people.iith.ac.in/vineethnb/resources/daisee/>
+```powershell
+.\scripts\fine_tune_headset_cnns.ps1 `
+  -Session data\calibration\P001_session_01, `
+           data\calibration\P002_session_01, `
+           data\calibration\P003_session_01
+```
+
+The command builds the `vr_state` manifest and trains both regional models. It
+loads the compatible FER2013 feature tensors, creates a new 12-output layer,
+freezes the feature extractor for two warm-up epochs, and then fine-tunes the
+entire network at a learning rate of `0.0001`. By default, training stops with a
+clear error if any of the 12 states is absent from the training split. The
+`-AllowPartialClasses` switch is only for pipeline experiments; its output is
+not a complete headset model.
+
+## Dataset policy
+
 - AffectNet requires an individual academic-use agreement. Access cannot be
   accepted by software on a researcher's behalf:
   <https://mohammadmahoor.com/affectnet/>
 
-Their labels must remain separate tasks (`engagement` and
-`expression_valence_arousal`) until the multimodal fusion stage.
+This project does **not** use DAiSEE. Its implemented training path is FER2013
+expression pretraining followed only by participant-disjoint, project-owned
+headset recordings for the final `vr_state` task. AffectNet is optional and is
+not part of the current fine-tuning run.
 
 ## Current measured models
 
@@ -82,8 +99,8 @@ baseline results are:
 | Equal probability fusion | 25.55% | 24.12% |
 
 This baseline validates the data and evaluation plumbing. It is not accurate
-enough for deployment. The next model upgrade is a compact CNN followed by
-temporal and multimodal fine-tuning on DAiSEE and real headset sessions.
+enough for deployment. The next model upgrade is the compact CNN transfer step
+implemented above, using only real project headset sessions for the 12 states.
 
 The compact 17,415-parameter CNN has now been trained for each camera. On the
 same untouched 3,589-face FER2013 test split:

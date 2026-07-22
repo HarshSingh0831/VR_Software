@@ -60,7 +60,10 @@ class FeatureReceiver:
 async def run(host: str, port: int, sync_tolerance_ms: int, calibration_root: str | None) -> None:
     calibration = CalibrationRecorder(calibration_root) if calibration_root else None
     receiver = FeatureReceiver(FeatureBuffer(sync_tolerance_ms=sync_tolerance_ms), calibration)
-    async with serve(receiver.handle, host, port, ping_interval=10, ping_timeout=10):
+    # The ESP32 WebSocket client streams data but doesn't answer protocol-level
+    # keepalive pings. Application packets already provide liveness, so disabling
+    # server pings prevents a healthy eye-camera stream being reset every 30 s.
+    async with serve(receiver.handle, host, port, ping_interval=None):
         LOGGER.info("Listening on ws://%s:%d", host, port)
         await asyncio.get_running_loop().create_future()
 

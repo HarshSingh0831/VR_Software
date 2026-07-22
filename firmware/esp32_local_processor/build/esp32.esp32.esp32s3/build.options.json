@@ -1,9 +1,0 @@
-{
-  "additionalFiles": "..\\..,..\\..,..\\..",
-  "compiler.optimization_flags": "-Os",
-  "customBuildProperties": "",
-  "fqbn": "esp32:esp32:esp32s3:FlashSize=16M,PartitionScheme=fatflash,PSRAM=opi,USBMode=hwcdc,CDCOnBoot=cdc",
-  "hardwareFolders": "C:\\Users\\Harsh\\OneDrive\\Documents\\VR Software\\.arduino\\data\\packages\\esp32\\hardware\\esp32\\3.3.10,C:\\Users\\Harsh\\OneDrive\\Documents\\VR Software\\.arduino\\data\\packages\\esp32\\hardware\\esp32\\3.3.10",
-  "otherLibrariesFolders": "C:\\Users\\Harsh\\OneDrive\\Documents\\VR Software\\.arduino\\user\\libraries",
-  "sketchLocation": "C:\\Users\\Harsh\\OneDrive\\Documents\\VR Software\\firmware\\esp32_local_processor"
-}

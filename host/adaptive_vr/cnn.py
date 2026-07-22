@@ -17,6 +17,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 from .public_dataset import PublicDatasetRecord, read_public_manifest
+from .taxonomy import StudentState
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +54,9 @@ class ManifestImageDataset(Dataset[tuple[torch.Tensor, int]]):
         self.images = np.empty((len(records), 48, 96), dtype=np.uint8)
         for index, record in enumerate(records):
             with Image.open(self.root / record.path) as source:
-                image = ImageOps.grayscale(source).resize((96, 48), Image.Resampling.BILINEAR)
+                image = ImageOps.equalize(
+                    ImageOps.grayscale(source).resize((96, 48), Image.Resampling.BILINEAR)
+                )
                 self.images[index] = np.asarray(image, dtype=np.uint8)
 
     def __len__(self) -> int:
@@ -143,6 +146,31 @@ def class_weights(records: list[PublicDatasetRecord], classes: list[str]) -> tor
     return torch.tensor(weights, dtype=torch.float32)
 
 
+def transfer_compatible_weights(
+    model: nn.Module, checkpoint_path: str | Path, *, expected_region: str
+) -> list[str]:
+    """Load reusable tensors while leaving a new task-specific output layer intact."""
+    checkpoint = torch.load(Path(checkpoint_path), map_location="cpu", weights_only=True)
+    checkpoint_region = checkpoint.get("region")
+    if checkpoint_region is not None and checkpoint_region != expected_region:
+        raise ValueError(
+            f"Checkpoint region is {checkpoint_region!r}, not {expected_region!r}"
+        )
+    source_state = checkpoint.get("state_dict")
+    if not isinstance(source_state, dict):
+        raise ValueError("Pretrained checkpoint does not contain a state_dict")
+    target_state = model.state_dict()
+    transferable = {
+        name: value
+        for name, value in source_state.items()
+        if name in target_state and target_state[name].shape == value.shape
+    }
+    if not transferable:
+        raise ValueError("Pretrained checkpoint has no compatible CNN tensors")
+    model.load_state_dict(transferable, strict=False)
+    return sorted(transferable)
+
+
 def make_loader(
     records: list[PublicDatasetRecord],
     root: Path,
@@ -199,7 +227,12 @@ def train_region(
     region: str,
     config: CnnConfig,
     limit: int | None = None,
+    initial_checkpoint: str | Path | None = None,
+    freeze_feature_epochs: int = 0,
+    expected_classes: set[str] | None = None,
 ) -> dict[str, object]:
+    if freeze_feature_epochs < 0 or freeze_feature_epochs >= config.epochs:
+        raise ValueError("freeze_feature_epochs must be between 0 and epochs - 1")
     seed_everything(config.seed)
     torch.set_num_threads(max(1, min(6, os.cpu_count() or 1)))
     manifest = Path(manifest)
@@ -212,6 +245,10 @@ def train_region(
     classes = sorted({record.label for record in train_records})
     if len(classes) < 2 or not validation_records:
         raise ValueError("Training requires at least two classes and a validation split")
+    if expected_classes is not None:
+        missing = sorted(expected_classes - set(classes))
+        if missing:
+            raise ValueError(f"Training split is missing required classes: {', '.join(missing)}")
     root = manifest.parent
     train_loader = make_loader(
         train_records, root, classes, batch_size=config.batch_size, augment=True, shuffle=True
@@ -226,6 +263,14 @@ def train_region(
     )
     device = torch.device("cpu")
     model = CompactFaceCNN(len(classes)).to(device)
+    transferred_tensors: list[str] = []
+    if initial_checkpoint is not None:
+        transferred_tensors = transfer_compatible_weights(
+            model, initial_checkpoint, expected_region=region
+        )
+    if freeze_feature_epochs > 0:
+        for parameter in model.features.parameters():
+            parameter.requires_grad = False
     weights = class_weights(train_records, classes).to(device)
     criterion = nn.CrossEntropyLoss(weight=weights)
     optimizer = torch.optim.AdamW(
@@ -243,7 +288,13 @@ def train_region(
     started = time.time()
 
     for epoch in range(1, config.epochs + 1):
+        if freeze_feature_epochs > 0 and epoch == freeze_feature_epochs + 1:
+            for parameter in model.features.parameters():
+                parameter.requires_grad = True
         model.train()
+        if epoch <= freeze_feature_epochs:
+            # Frozen BatchNorm layers must not change their running statistics.
+            model.features.eval()
         train_loss: list[float] = []
         for images, labels in train_loader:
             images = images.to(device)
@@ -275,6 +326,9 @@ def train_region(
                     "region": region,
                     "config": asdict(config),
                     "validation": validation,
+                    "initial_checkpoint": str(initial_checkpoint) if initial_checkpoint else None,
+                    "transferred_tensors": transferred_tensors,
+                    "freeze_feature_epochs": freeze_feature_epochs,
                 },
                 checkpoint_path,
             )
@@ -298,6 +352,9 @@ def train_region(
         "best_validation_macro_f1": best_f1,
         "epochs_completed": len(history),
         "training_seconds": round(time.time() - started, 2),
+        "initial_checkpoint": str(initial_checkpoint) if initial_checkpoint else None,
+        "transferred_tensors": transferred_tensors,
+        "freeze_feature_epochs": freeze_feature_epochs,
         "history": history,
     }
     (output / f"{task}_{region}_cnn_history.json").write_text(
@@ -393,6 +450,26 @@ def main() -> None:
     train_parser.add_argument("--patience", type=int, default=3)
     train_parser.add_argument("--batch-size", type=int, default=128)
     train_parser.add_argument("--limit", type=int)
+    fine_tune_parser = subparsers.add_parser(
+        "fine-tune", help="Transfer a FER2013 regional CNN to labeled headset states"
+    )
+    fine_tune_parser.add_argument("--manifest", required=True)
+    fine_tune_parser.add_argument("--output", default="models/fine_tuned")
+    fine_tune_parser.add_argument("--task", default="vr_state")
+    fine_tune_parser.add_argument("--region", choices=("upper_face", "lower_face"), required=True)
+    fine_tune_parser.add_argument("--pretrained", required=True)
+    fine_tune_parser.add_argument("--epochs", type=int, default=20)
+    fine_tune_parser.add_argument("--patience", type=int, default=5)
+    fine_tune_parser.add_argument("--batch-size", type=int, default=64)
+    fine_tune_parser.add_argument("--learning-rate", type=float, default=1e-4)
+    fine_tune_parser.add_argument("--weight-decay", type=float, default=1e-4)
+    fine_tune_parser.add_argument("--freeze-feature-epochs", type=int, default=2)
+    fine_tune_parser.add_argument("--limit", type=int)
+    fine_tune_parser.add_argument(
+        "--allow-partial-classes",
+        action="store_true",
+        help="Permit a prototype model when the training split does not contain all 12 states",
+    )
     evaluate_parser = subparsers.add_parser("evaluate")
     evaluate_parser.add_argument("--manifest", required=True)
     evaluate_parser.add_argument("--model-dir", default="models/cnn")
@@ -411,6 +488,34 @@ def main() -> None:
                     region=args.region,
                     config=config,
                     limit=args.limit,
+                ),
+                indent=2,
+            )
+        )
+    elif args.command == "fine-tune":
+        config = CnnConfig(
+            epochs=args.epochs,
+            patience=args.patience,
+            batch_size=args.batch_size,
+            learning_rate=args.learning_rate,
+            weight_decay=args.weight_decay,
+        )
+        print(
+            json.dumps(
+                train_region(
+                    args.manifest,
+                    args.output,
+                    task=args.task,
+                    region=args.region,
+                    config=config,
+                    limit=args.limit,
+                    initial_checkpoint=args.pretrained,
+                    freeze_feature_epochs=args.freeze_feature_epochs,
+                    expected_classes=(
+                        None
+                        if args.allow_partial_classes
+                        else {state.value for state in StudentState}
+                    ),
                 ),
                 indent=2,
             )

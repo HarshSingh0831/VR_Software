@@ -4,6 +4,7 @@ from collections import Counter
 from dataclasses import dataclass
 from io import BytesIO
 import json
+from pathlib import Path
 import shlex
 import threading
 import time
@@ -30,10 +31,18 @@ class Preview:
 class PiGateway:
     """Small, thread-safe SSH/SFTP client used by the local dashboard."""
 
-    def __init__(self, host: str, username: str, password: str):
+    def __init__(
+        self,
+        host: str,
+        username: str,
+        password: str = "",
+        *,
+        key_filename: str | Path | None = None,
+    ):
         self.host = host
         self.username = username
         self.password = password
+        self.key_filename = str(key_filename) if key_filename else None
         self._client: paramiko.SSHClient | None = None
         self._lock = threading.RLock()
 
@@ -50,7 +59,8 @@ class PiGateway:
                 client.connect(
                     self.host,
                     username=self.username,
-                    password=self.password,
+                    password=self.password or None,
+                    key_filename=self.key_filename,
                     timeout=5,
                     auth_timeout=5,
                     banner_timeout=5,
@@ -114,7 +124,7 @@ class PiGateway:
 printf 'receiver='; systemctl is-active adaptive-vr-receiver.service 2>/dev/null || true
 printf 'lower='; systemctl is-active adaptive-vr-lower-face.service 2>/dev/null || true
 printf 'connections='; ss -Htn state established 2>/dev/null | grep -c ':8765' || true
-printf 'upper='; ss -Htn state established 2>/dev/null | grep ':8765' | grep -c '172.18.57.241' || true
+printf 'upper='; ss -Htn state established 2>/dev/null | grep ':8765' | grep -v '127.0.0.1' | wc -l || true
 printf 'lower_socket='; ss -Htn state established 2>/dev/null | grep ':8765' | grep -c '127.0.0.1' || true
 printf 'sync10='; journalctl -u adaptive-vr-receiver.service --since '10 seconds ago' --no-pager -q 2>/dev/null | grep -c 'Synchronized upper=' || true
 printf 'control='; test -f {CALIBRATION_ROOT}/control.json && tr -d '\\n' < {CALIBRATION_ROOT}/control.json || printf '{{"active":false}}'

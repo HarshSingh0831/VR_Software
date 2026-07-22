@@ -5,13 +5,6 @@
     "labels": ["angry", "disgust", "fear", "happy", "sad", "surprise", "neutral"],
     "local_manifest": "models/datasets/fer2013_vr/manifest.csv"
   },
-  "DAiSEE": {
-    "task": "engagement",
-    "status": "requires_user_terms_acceptance",
-    "url": "https://people.iith.ac.in/vineethnb/resources/daisee/",
-    "size": "approximately 15 GB",
-    "labels": ["boredom", "confusion", "engagement", "frustration"]
-  },
   "AffectNet": {
     "task": "expression_valence_arousal",
     "status": "requires_individual_academic_license",

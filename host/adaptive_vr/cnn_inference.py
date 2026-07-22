@@ -19,7 +19,9 @@ class CnnPrediction:
 
 
 def _preprocess(source: Image.Image) -> torch.Tensor:
-    image = ImageOps.grayscale(source).resize((96, 48), Image.Resampling.BILINEAR)
+    image = ImageOps.equalize(
+        ImageOps.grayscale(source).resize((96, 48), Image.Resampling.BILINEAR)
+    )
     pixels = np.asarray(image, dtype=np.float32).copy() / 255.0
     tensor = torch.from_numpy(pixels).unsqueeze(0).unsqueeze(0)
     return (tensor - 0.5) / 0.5
@@ -74,6 +76,36 @@ class PartialFaceCnnPredictor:
             "lower_face": self._result(lower_probability),
             "fused": self._result(fused_probability),
         }
+
+
+class UpperFaceCnnPredictor:
+    """Single-camera predictor for the headset's eye and eyebrow view."""
+
+    def __init__(self, model_dir: str | Path, *, task: str = "expression"):
+        model_dir = Path(model_dir)
+        self.model = torch.jit.load(str(model_dir / f"{task}_upper_face_cnn_scripted.pt"))
+        checkpoint = torch.load(
+            model_dir / f"{task}_upper_face_cnn.pt", map_location="cpu", weights_only=True
+        )
+        self.classes = list(checkpoint["classes"])
+        self.model.eval()
+
+    def predict(self, path: str | Path) -> CnnPrediction:
+        return self._predict_tensor(preprocess_image(path))
+
+    def predict_bytes(self, data: bytes) -> CnnPrediction:
+        return self._predict_tensor(preprocess_bytes(data))
+
+    def _predict_tensor(self, image: torch.Tensor) -> CnnPrediction:
+        with torch.inference_mode():
+            probability = torch.softmax(self.model(image), dim=1)
+        values = probability.squeeze(0).cpu().tolist()
+        index = int(probability.argmax(dim=1).item())
+        return CnnPrediction(
+            label=self.classes[index],
+            confidence=float(values[index]),
+            probabilities=dict(zip(self.classes, (float(value) for value in values), strict=True)),
+        )
 
 
 def main() -> None:

@@ -24,6 +24,22 @@ class UnityTests(unittest.TestCase):
         self.assertEqual(message["stable_state"], "confused")
         self.assertEqual(message["adaptive_action"]["action"], "simplify")
 
+    def test_confusion_message_can_offer_small_subcontent_popup(self):
+        prediction = StatePrediction(1000, StudentState.CONFUSED, 0.8, ("repeat request",))
+        stable = StableState(StudentState.CONFUSED, 0.75, 900, True)
+        options = [{"content_id": "torque", "title": "Torque", "duration": "7:02"}]
+        message = json.loads(
+            adaptive_message(
+                prediction,
+                stable,
+                action_for(StudentState.CONFUSED),
+                recommended_content=options,
+            )
+        )
+        self.assertEqual(message["subcontent_popup"]["presentation"], "small_popup")
+        self.assertTrue(message["subcontent_popup"]["pause_main_content"])
+        self.assertEqual(message["subcontent_popup"]["options"], options)
+
 
 if __name__ == "__main__":
     unittest.main()
