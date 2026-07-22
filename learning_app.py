@@ -5,6 +5,7 @@ import array
 import hashlib
 import json
 from pathlib import Path
+import socket
 import threading
 import time
 from uuid import uuid4
@@ -81,7 +82,10 @@ PLAYER_CONTROLLER = st.components.v2.component(
       let cancelled = false
       let state = controllerStates.get(parentElement)
       if (!state) {
-        state = { appliedToken: null, shown: new Set(), quizEvents: new Set(), emotion: data?.emotion ?? "focused" }
+        state = {
+          appliedToken: null, shown: new Set(), quizEvents: new Set(),
+          emotion: data?.emotion ?? "focused", lastSyncSent: 0
+        }
         controllerStates.set(parentElement, state)
       }
       state.emotion = data?.emotion ?? state.emotion
@@ -143,6 +147,21 @@ PLAYER_CONTROLLER = st.components.v2.component(
         } else if (state.appliedToken !== token && command === "unmute") {
           video.muted = false
           show("UNMUTE applied to video")
+        } else if (state.appliedToken !== token && command === "sync_play") {
+          const target = Number(data?.target_position ?? 0)
+          if (Number.isFinite(target) && Math.abs(video.currentTime - target) > 1.25) {
+            video.currentTime = target
+          }
+          video.play()
+            .then(() => show(`SYNCHRONIZED playing at ${Math.floor(target)}s`))
+            .catch(() => show("Tap the phone video once, then synchronization can play it"))
+        } else if (state.appliedToken !== token && command === "sync_pause") {
+          const target = Number(data?.target_position ?? 0)
+          if (Number.isFinite(target) && Math.abs(video.currentTime - target) > 0.5) {
+            video.currentTime = target
+          }
+          video.pause()
+          show(`SYNCHRONIZED paused at ${Math.floor(target)}s`)
         } else if (state.appliedToken !== token) {
           show("Video controller ready")
         }
@@ -201,6 +220,16 @@ PLAYER_CONTROLLER = st.components.v2.component(
             video.pause()
             setTriggerValue("playback", {
               event_id: `mid-${Date.now()}`, type: "mid_quiz", position: Math.floor(video.currentTime)
+            })
+          }
+          const now = Date.now()
+          if (data?.device_kind === "laptop" && now - state.lastSyncSent >= 2000) {
+            state.lastSyncSent = now
+            setTriggerValue("sync", {
+              event_id: `sync-${now}`,
+              position: video.currentTime,
+              paused: video.paused,
+              content_id: data?.content_id
             })
           }
         }
@@ -340,6 +369,8 @@ def initialize_state() -> None:
         "quiz_phase": "hidden",
         "dashboard_client_id": uuid4().hex,
         "shared_dashboard_version": 0,
+        "last_sync_event_id": "",
+        "last_sync_at_ms": 0,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -367,6 +398,17 @@ def connected_device_status() -> tuple[bool, int, int]:
         laptop_count = sum(item["kind"] == "laptop" for item in clients.values())
         phone_count = sum(item["kind"] == "smartphone" for item in clients.values())
     return laptop_count > 0 and phone_count > 0, laptop_count, phone_count
+
+
+@st.cache_data(ttl=5, max_entries=8)
+def host_reachable(host: str, port: int = 22, timeout: float = 0.3) -> bool:
+    if not host:
+        return False
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 @st.cache_data
@@ -627,6 +669,7 @@ def queue_player_command(command: str, *, publish: bool = True) -> None:
                 "awaiting_understanding": st.session_state.awaiting_understanding,
                 "quiz_phase": st.session_state.quiz_phase,
                 "media_status": st.session_state.media_status,
+                "media_position": st.session_state.media_position,
                 "player_command": command,
             }
             st.session_state.shared_dashboard_version = bus["version"]
@@ -766,6 +809,7 @@ def shared_dashboard_feed() -> None:
         "awaiting_understanding",
         "quiz_phase",
         "media_status",
+        "media_position",
     ):
         if key in shared:
             st.session_state[key] = shared[key]
@@ -946,6 +990,8 @@ with content_column:
                     "command": st.session_state.player_command,
                     "token": st.session_state.player_command_token,
                     "content_id": selected_video["content_id"],
+                    "device_kind": current_device_kind(),
+                    "target_position": st.session_state.media_position,
                     "emotion": st.session_state.detected_emotion,
                     "support_emotions": ["confused", "bored", "drowsy", "frustrated"],
                     "modules": expected_modules,
@@ -999,6 +1045,19 @@ with content_column:
                         st.session_state.media_status = "paused"
                         record_event("quiz_started", {"phase": "final"})
                     st.rerun()
+            sync_event = getattr(player_result, "sync", None)
+            if sync_event and current_device_kind() == "laptop":
+                sync_id = str(sync_event.get("event_id", ""))
+                if sync_id and sync_id != st.session_state.last_sync_event_id:
+                    st.session_state.last_sync_event_id = sync_id
+                    st.session_state.media_position = max(0, int(float(sync_event.get("position", 0))))
+                    st.session_state.media_status = (
+                        "paused" if bool(sync_event.get("paused")) else "playing"
+                    )
+                    st.session_state.last_sync_at_ms = time.time_ns() // 1_000_000
+                    queue_player_command(
+                        "sync_pause" if bool(sync_event.get("paused")) else "sync_play"
+                    )
             st.caption(":material/volume_up: Audio plays through the speaker of the device running this browser.")
         with st.container(horizontal=True):
             if st.button(
@@ -1175,16 +1234,25 @@ with st.container(border=True):
 def camera_and_recording() -> None:
     with st.container(border=True):
         st.subheader(":material/visibility: Upper-camera learning signal")
+        if current_device_kind() == "smartphone":
+            st.caption("Camera inference runs on the laptop; its result is shared with this phone.")
+            return
+        pi_host = st.session_state.pi_host.strip()
+        if not host_reachable(pi_host):
+            st.warning(
+                f"Raspberry Pi {pi_host} is not reachable. Video and voice synchronization remain active."
+            )
+            return
         try:
             pi = pi_gateway(
-                st.session_state.pi_host.strip(),
+                pi_host,
                 st.session_state.pi_user.strip(),
                 st.session_state.pi_password,
                 str(PI_KEY) if PI_KEY.exists() else "",
             )
             status = pi.snapshot()
             preview = pi.preview("upper_face")
-        except (PiConnectionError, OSError) as exc:
+        except Exception as exc:
             st.error(f"Raspberry Pi unavailable: {exc}")
             return
         with st.container(horizontal=True):
